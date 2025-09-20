@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  bot:
+    container_name: progress-bar-bot
+    build: .
+    # Load BOT_TOKEN and CHANNEL_ID from local .env (not committed)
+    env_file:
+      - .env
+    # Persist the SQLite DB across restarts
+    volumes:
+      - ./jobs.db:/app/jobs.db
+    # Auto-restart the bot unless it is explicitly stopped
+    restart: unless-stopped
+    # Optional healthcheck to keep an eye on the process
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import os,sqlite3;print(\"ok\")' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
