@@ -537,6 +537,9 @@ async def main() -> None:
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
+    # Allow re-entering /run even if a previous conversation is still active.
+    # This fixes the case where sending /run again appears to do nothing
+    # because the conversation was waiting for non-command input.
     conv = ConversationHandler(
         entry_points=[CommandHandler('run', run_command)],
         states={
@@ -547,13 +550,16 @@ async def main() -> None:
             ],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
+        allow_reentry=True,
     )
 
     app.add_handler(CommandHandler('start', start))
+    # Place the conversation handler before the standalone /cancel handler so that
+    # the conversation's fallback /cancel is respected while inside the flow.
+    app.add_handler(conv)
     app.add_handler(CommandHandler('cancel', cancel_job_command))
     app.add_handler(CommandHandler('check_add', check_add_command))
     app.add_handler(CallbackQueryHandler(handle_job_cancellation, pattern=r"^(cancel_job_\d+|cancel_selection)$"))
-    app.add_handler(conv)
     
     await app.initialize()
     await resume_jobs(app)
