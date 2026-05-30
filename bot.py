@@ -186,7 +186,7 @@ async def cancel_job_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elapsed = time.time() - start_time
         progress = min(int((elapsed / duration) * 100), 100)
         remaining = max(duration - elapsed, 0)
-        time_left_str = format_time_left(remaining)
+        time_left_str = T.format_time_left(remaining)
         
         # Truncate post text for button display
         display_text = (post_text[:30] + '...') if len(post_text) > 30 else post_text
@@ -198,8 +198,20 @@ async def cancel_job_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     keyboard.append([InlineKeyboardButton(T.cancel_selection_label, callback_data="cancel_selection")])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await update.message.reply_text(T.select_job_to_cancel, reply_markup=reply_markup)
+
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Global error handler to log exceptions and avoid silent failures."""
+    logging.exception("Unhandled exception while handling update", exc_info=context.error)
+    # Best-effort notify the user in chats where it's safe to do so
+    try:
+        message = getattr(update, "message", None)
+        if message:
+            await message.reply_text("⚠️ An unexpected error occurred. Please try again.")
+    except Exception:
+        pass
 
 
 async def handle_job_cancellation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -536,6 +548,7 @@ async def main() -> None:
     init_db()
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_error_handler(error_handler)
 
     # Allow re-entering /run even if a previous conversation is still active.
     # This fixes the case where sending /run again appears to do nothing
